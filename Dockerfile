@@ -8,6 +8,14 @@ RUN apt-get install -y apt-transport-https software-properties-common postgresql
 # Install app & dependencies
 RUN mkdir /app
 WORKDIR /app
+
+# Improvements
+ENV BUNDLE_PATH=/bundle \
+    BUNDLE_JOBS=4 \
+    BUNDLE_RETRY=3 \
+    BUNDLE_APP_CONFIG="/bundle"
+
+
 COPY Gemfile /app/Gemfile
 COPY Gemfile.lock /app/Gemfile.lock
 RUN bundle install -j 4
