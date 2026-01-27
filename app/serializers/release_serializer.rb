@@ -28,19 +28,9 @@ class ReleaseSerializer
   class << self
     def serialize_for_api(releases)
       serialized = new(releases).serializable_hash
-
-      if serialized[:data].is_a?(Array)
-        serialized[:data].map { |item| flatten_resource(item) }
-      else
-        flatten_resource(serialized[:data])
+      serialized[:data].map do |item|
+        { id: item[:id].to_i }.merge(item[:attributes])
       end
-    end
-
-    private
-
-    def flatten_resource(resource)
-      return nil unless resource
-      { id: resource[:id].to_i }.merge(resource[:attributes])
     end
   end
 end
