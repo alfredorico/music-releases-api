@@ -94,6 +94,8 @@ GEM
       activesupport (>= 6.1)
     i18n (1.14.5)
       concurrent-ruby (~> 1.0)
+    jsonapi-serializer (2.2.0)
+      activesupport (>= 4.2)
     listen (3.9.0)
       rb-fsevent (~> 0.10, >= 0.10.3)
       rb-inotify (~> 0.9, >= 0.9.10)
@@ -124,6 +126,7 @@ GEM
     nokogiri (1.16.7)
       mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
+    pagy (6.5.0)
     pg (1.5.7)
     puma (3.12.6)
     racc (1.8.1)
@@ -198,7 +201,9 @@ DEPENDENCIES
   dotenv-rails
   factory_bot_rails
   faker
+  jsonapi-serializer (~> 2.2)
   listen (~> 3.2)
+  pagy (~> 6.0)
   pg
   puma (~> 3.11)
   rails (~> 7.0.0)

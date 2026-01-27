@@ -13,6 +13,12 @@ gem "puma", "~> 3.11"
 gem "rails", "~> 7.0.0"
 gem "bootsnap", ">= 1.4.2", require: false
 
+# Pagination
+gem "pagy", "~> 6.0"
+
+# Serialization
+gem "jsonapi-serializer", "~> 2.2"
+
 group :development, :test do
   # Call "byebug" anywhere in the code to stop execution and get a debugger console
   gem "byebug", platforms: [:mri, :mingw, :x64_mingw]
