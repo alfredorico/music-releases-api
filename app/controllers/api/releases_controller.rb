@@ -26,7 +26,7 @@ module Api
       render json: {
         data: ReleaseSerializer.serialize_for_api(paginated_collection.records),
         meta: {
-          pagination: paginated_collection.pagination_metadata
+          pagination: paginated_collection.metadata
         }
       }
     end
