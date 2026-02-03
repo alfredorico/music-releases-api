@@ -23,16 +23,31 @@ module Api
     end
 
     def render_success(paginated_collection)
-      render json: {
-        data: ReleaseSerializer.serialize_for_api(paginated_collection.records),
-        meta: {
-          pagination: paginated_collection.metadata
-        }
+      links = build_pagination_links(paginated_collection.metadata)
+
+      render json: serialized_response(paginated_collection, links)
+    end
+
+    def serialized_response(paginated_collection, links)
+      options = {
+        include: [:album, :artists],
+        meta: { pagination: paginated_collection.metadata },
+        links: links
       }
+
+      ReleaseSerializer.new(paginated_collection.records, options).serializable_hash
+    end
+
+    def build_pagination_links(metadata)
+      Pagination::LinksBuilder.new(
+        base_path: api_releases_path,
+        metadata: metadata,
+        query_params: request.query_parameters
+      ).build
     end
 
     def render_error(error, status: :unprocessable_entity)
-      render json: { error: error }, status: status
+      render json: { errors: [{ detail: error }] }, status: status
     end
   end
 end

@@ -86,63 +86,131 @@ RSpec.describe 'Api::Releases', type: :request do
         end
       end
 
-      context 'with complete JSON structure validation' do
+      context 'with JSON:API structure validation' do
         let(:artist) { FactoryBot.create(:artist, name: 'Test Artist') }
         let(:release) { FactoryBot.create(:release, :past, name: 'Test Release') }
         let!(:album) { FactoryBot.create(:album, release: release, artist: artist, name: 'Test Album', duration_in_minutes: 45) }
         let!(:artist_release) { FactoryBot.create(:artist_release, artist: artist, release: release) }
 
-        it 'returns the expected JSON structure with all attributes' do
+        it 'returns valid JSON:API top-level structure' do
           get '/api/releases'
 
           expect(response).to have_http_status(:ok)
-
-          # Validate top-level structure
           expect(json_response).to have_key('data')
-          expect(json_response['data']).to be_an(Array)
+          expect(json_response).to have_key('included')
+          expect(json_response).to have_key('links')
           expect(json_response).to have_key('meta')
-          expect(json_response['meta']).to have_key('pagination')
+        end
 
-          # Validate release attributes
+        it 'returns proper data resource objects' do
+          get '/api/releases'
+
           release_data = json_response['data'].first
-          expect(release_data['id']).to eq(release.id)
-          expect(release_data['name']).to eq('Test Release')
+          expect(release_data['type']).to eq('release')
+          expect(release_data['id']).to eq(release.id.to_s)
+          expect(release_data).to have_key('attributes')
+          expect(release_data).to have_key('relationships')
+        end
 
-          # Validate album nested structure
-          expect(release_data['album']).to be_a(Hash)
-          expect(release_data['album']['name']).to eq('Test Album')
+        it 'returns expected attributes' do
+          get '/api/releases'
 
-          # Validate artists nested structure
-          expect(release_data['artists']).to be_an(Array)
-          expect(release_data['artists'].first['id']).to eq(artist.id)
-          expect(release_data['artists'].first['name']).to eq('Test Artist')
+          attributes = json_response['data'].first['attributes']
+          expect(attributes['name']).to eq('Test Release')
+          expect(attributes['duration_in_minutes']).to eq(45)
+          expect(attributes['created_at']).to match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+          expect(attributes['released_at']).to match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+        end
 
-          # Validate timestamp formats (ISO8601)
-          expect(release_data['created_at']).to match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
-          expect(release_data['released_at']).to match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+        it 'returns proper album relationship' do
+          get '/api/releases'
 
-          # Validate duration
-          expect(release_data['duration_in_minutes']).to eq(45)
+          album_rel = json_response['data'].first['relationships']['album']
+          expect(album_rel['data']['type']).to eq('album')
+          expect(album_rel['data']['id']).to eq(album.id.to_s)
+        end
 
-          # Validate pagination metadata structure
-          pagination = json_response['meta']['pagination']
-          expect(pagination).to have_key('current_page')
-          expect(pagination).to have_key('per_page')
-          expect(pagination).to have_key('total_pages')
-          expect(pagination).to have_key('total_count')
-          expect(pagination).to have_key('next_page')
-          expect(pagination).to have_key('prev_page')
+        it 'returns proper artists relationship' do
+          get '/api/releases'
+
+          artists_rel = json_response['data'].first['relationships']['artists']
+          expect(artists_rel['data']).to contain_exactly(
+            { 'type' => 'artist', 'id' => artist.id.to_s }
+          )
+        end
+
+        it 'includes album in included section' do
+          get '/api/releases'
+
+          album_included = json_response['included'].find { |r| r['type'] == 'album' }
+          expect(album_included['id']).to eq(album.id.to_s)
+          expect(album_included['attributes']['name']).to eq('Test Album')
+        end
+
+        it 'includes artist in included section' do
+          get '/api/releases'
+
+          artist_included = json_response['included'].find { |r| r['type'] == 'artist' }
+          expect(artist_included['id']).to eq(artist.id.to_s)
+          expect(artist_included['attributes']['name']).to eq('Test Artist')
+        end
+      end
+
+      context 'with pagination links' do
+        let!(:releases) { FactoryBot.create_list(:release, 25, :past) }
+
+        it 'returns all pagination links' do
+          get '/api/releases', params: { page: 2, limit: 10 }
+
+          links = json_response['links']
+          expect(links).to have_key('self')
+          expect(links).to have_key('first')
+          expect(links).to have_key('last')
+          expect(links).to have_key('prev')
+          expect(links).to have_key('next')
+        end
+
+        it 'returns correct pagination link values on middle page' do
+          get '/api/releases', params: { page: 2, limit: 10 }
+
+          links = json_response['links']
+          expect(links['self']).to include('page=2')
+          expect(links['first']).to include('page=1')
+          expect(links['last']).to include('page=3')
+          expect(links['prev']).to include('page=1')
+          expect(links['next']).to include('page=3')
+        end
+
+        it 'returns null prev link on first page' do
+          get '/api/releases', params: { page: 1, limit: 10 }
+
+          expect(json_response['links']['prev']).to be_nil
+        end
+
+        it 'returns null next link on last page' do
+          get '/api/releases', params: { page: 3, limit: 10 }
+
+          expect(json_response['links']['next']).to be_nil
+        end
+
+        it 'preserves filter params in pagination links' do
+          get '/api/releases', params: { page: 1, limit: 10, past: '1' }
+
+          links = json_response['links']
+          expect(links['self']).to include('past=1')
+          expect(links['next']).to include('past=1')
         end
       end
     end
 
     context 'when fetching data fails' do
       context 'when past parameter is invalid' do
-        it 'returns 422 unprocessable entity with error message' do
+        it 'returns 422 unprocessable entity with JSON:API error format' do
           get '/api/releases', params: { past: 'invalid' }
 
           expect(response).to have_http_status(:unprocessable_entity)
-          expect(json_response['error']).to eq("Invalid 'past' parameter. Must be 0 or 1.")
+          expect(json_response['errors']).to be_an(Array)
+          expect(json_response['errors'].first['detail']).to eq("Invalid 'past' parameter. Must be 0 or 1.")
         end
       end
     end
